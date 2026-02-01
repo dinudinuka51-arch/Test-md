@@ -1,15 +1,14 @@
 {
   "name": "vinu-roman-messager",
-  "version": "1.9.0",
-  "description": "Stable WhatsApp Bot",
+  "version": "2.0.0",
+  "description": "Stable No-Photo Bot",
   "main": "index.js",
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
+    "@neeraj-x0/yt-downloader": "latest",
     "pino": "^8.0.0",
     "axios": "^1.3.0",
     "fs-extra": "^11.1.0",
-    "wa-sticker-formatter": "latest",
-    "yt-search": "latest",
-    "ytdl-core": "latest"
+    "yt-search": "latest"
   }
 }
