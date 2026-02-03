@@ -26,19 +26,17 @@ async function startBot() {
         },
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 0,
-        keepAliveIntervalMs: 10000
+        browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
+    // PAIRING CODE GENERATOR
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
                 let code = await sock.requestPairingCode(pairingNumber);
                 code = code?.match(/.{1,4}/g)?.join("-") || code;
                 console.log(`\n\n==== 🔑 YOUR PAIRING CODE: ${code} ====\n\n`);
-            } catch (err) { }
+            } catch (err) { console.error("Pairing Error:", err); }
         }, 8000);
     }
 
@@ -46,7 +44,10 @@ async function startBot() {
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
-        if (connection === 'open') console.log("✅ VINU ROMAN STABLE CONNECTED!");
+        if (connection === 'open') {
+            console.log("✅ VINU ROMAN CONNECTED SUCCESSFULLY!");
+            sock.sendMessage(ownerNumber, { text: "System Online! 🚀\nMulti-API Song Downloader Active." });
+        }
         if (connection === 'close') {
             let reason = lastDisconnect?.error?.output?.statusCode;
             if (reason !== DisconnectReason.loggedOut) startBot();
@@ -66,55 +67,68 @@ async function startBot() {
         const command = isCmd ? body.slice(prefix.length).trim().split(/\s+/).shift().toLowerCase() : "";
         const text = isCmd ? body.slice(prefix.length + command.length).trim() : body.trim();
 
-        // 🛡️ ANTI-CRASH WRAPPER
         try {
             if (isCmd) {
-                if (command === 'menu') {
-                    return await sock.sendMessage(from, { text: `✨ *${botName} MENU*\n\n.song [name]\n.alive\n\nඕනෑම දෙයක් අසන්න (AI).` });
+                // 1. MENU COMMAND
+                if (command === 'menu' || command === 'help') {
+                    const menu = `┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃  ✨ *${botName}* ✨  ┃\n┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n` +
+                                 `👤 *User:* ${pushName}\n\n` +
+                                 `*📥 DOWNLOADS*\n.song [name]\n\n` +
+                                 `*📊 INFO*\n.alive\n\n` +
+                                 `> *AI එක සමඟ කතා කිරීමට ඕනෑම දෙයක් Type කරන්න.*`;
+                    return await sock.sendMessage(from, { text: menu }, { quoted: msg });
                 }
 
+                // 2. SONG DOWNLOAD COMMAND (Multi-API Fix)
                 if (command === 'song') {
-                    if (!text) return sock.sendMessage(from, { text: "❌ කරුණාකර නමක් දෙන්න." });
+                    if (!text) return sock.sendMessage(from, { text: "❌ කරුණාකර සිංදුවේ නම ඇතුළත් කරන්න." });
                     await sock.sendMessage(from, { text: "🎧 *Searching and Downloading...*" });
 
                     const search = await yts(text);
                     const video = search.videos[0];
                     if (!video) return sock.sendMessage(from, { text: "❌ සොයාගත නොහැකි විය." });
 
-                    // 100% STABLE DOWNLOAD API (NO CRASH)
-                    const apiUrl = `https://api.giftedtech.my.id/api/download/dlmp3?url=${encodeURIComponent(video.url)}&apikey=gifted`;
-                    const res = await axios.get(apiUrl);
+                    let success = false;
+                    const apis = [
+                        `https://api.giftedtech.my.id/api/download/dlmp3?url=${encodeURIComponent(video.url)}&apikey=gifted`,
+                        `https://api.dhammika-v2.me/api/ytmp3?url=${encodeURIComponent(video.url)}`,
+                        `https://api.vinu-roman.online/api/ytmp3?url=${encodeURIComponent(video.url)}`
+                    ];
 
-                    if (res.data.success) {
-                        await sock.sendMessage(from, { 
-                            audio: { url: res.data.result.download_url }, 
-                            mimetype: 'audio/mp4',
-                            fileName: `${video.title}.mp3`
-                        }, { quoted: msg });
-                    } else {
-                        throw new Error("API Download Failed");
+                    for (let url of apis) {
+                        try {
+                            const res = await axios.get(url);
+                            const downloadUrl = res.data.result?.download_url || res.data.result?.url || res.data.url;
+
+                            if (downloadUrl) {
+                                await sock.sendMessage(from, { 
+                                    audio: { url: downloadUrl }, 
+                                    mimetype: 'audio/mp4',
+                                    fileName: `${video.title}.mp3`
+                                }, { quoted: msg });
+                                success = true;
+                                break; 
+                            }
+                        } catch (e) { continue; }
                     }
+
+                    if (!success) await sock.sendMessage(from, { text: "❌ සියලුම සර්වර් කාර්යබහුලයි. පසුව උත්සාහ කරන්න." });
                     return;
                 }
 
                 if (command === 'alive') {
-                    return await sock.sendMessage(from, { text: "Online & Stable! 🚀" });
+                    return await sock.sendMessage(from, { text: "I am Alive & Stable! 🚀" });
                 }
 
             } else if (body && !isCmd) {
-                // SMART AI (BLACKBOX)
+                // 3. SMART AI (No Prefix)
                 try {
                     const aiRes = await axios.get(`https://itzpire.com/ai/blackbox-ai?q=${encodeURIComponent(body)}`);
                     await sock.sendMessage(from, { text: aiRes.data.data }, { quoted: msg });
-                } catch (err) {
-                    console.log("AI Error");
-                }
+                } catch (err) { console.log("AI Error"); }
             }
-        } catch (e) {
-            console.error("Stable Error Handler:", e);
-            // බොට් මැරෙන්නේ නැතිව User ට මැසේජ් එකක් යවයි
-            await sock.sendMessage(from, { text: "⚠️ මෙම ගොනුව බාගත කිරීමේදී දෝෂයක් ඇති විය. කරුණාකර වෙනත් නමකින් උත්සාහ කරන්න." });
-        }
+        } catch (e) { console.error("Critical Error:", e); }
     });
 }
+
 startBot();
