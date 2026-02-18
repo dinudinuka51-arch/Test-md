@@ -48,7 +48,7 @@ async function startBot() {
             if (update.announce === false) {
                 console.log(`🔓 Group Unmuted: ${update.id}`);
                 await sock.sendMessage(update.id, { 
-                    text: "🔓 *ගෘප් එක දැන් Unmute කර ඇත! ඕනෑම කෙනෙකුට මැසේජ් දැමිය හැකිය.* \n\nPowered by VINU ROMAN AI 🚀" 
+                    text: "1x bet id❤️ 1571685357 " 
                 });
             }
             // announce: true කියන්නේ ගෘප් එක Mute කළා කියන එකයි
